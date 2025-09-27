@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "450499099799",
+    "project_id": "login-password-80980",
+    "storage_bucket": "login-password-80980.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:450499099799:android:89368f6bbd26e5e113bdd2",
+        "android_client_info": {
+          "package_name": "com.example.signup_login"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAXfuc9syiX_rnUI2lMyL3kghK_-bgVSuU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
