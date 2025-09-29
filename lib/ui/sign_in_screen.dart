@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:mvc/ui/home_screen.dart';
 import 'package:mvc/ui/sign_up_screreen.dart';
 import 'package:mvc/utils.dart';
 
@@ -44,9 +45,17 @@ class _SignInScreenState extends State<SignInScreen> {
   Widget _buildSignInForm() {
     return Column(
       children: [
-        TextFormField(controller: _emailController, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(hintText: "Email")),
+        TextFormField(
+          controller: _emailController,
+          keyboardType: TextInputType.emailAddress,
+          decoration: const InputDecoration(hintText: "Email"),
+        ),
         const SizedBox(height: 12),
-        TextFormField(controller: _passwordController, obscureText: true, decoration: const InputDecoration(hintText: "Password")),
+        TextFormField(
+          controller: _passwordController,
+          obscureText: true,
+          decoration: const InputDecoration(hintText: "Password"),
+        ),
         const SizedBox(height: 24),
         _loading
             ? const CircularProgressIndicator()
@@ -66,9 +75,31 @@ class _SignInScreenState extends State<SignInScreen> {
   Widget _buildSignUpSection() {
     return GestureDetector(
       onTap: () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const SignUpScreen()));
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const SignUpScreen()),
+        );
       },
-      child: const Text("Don't have an account? Sign Up", style: TextStyle(color: AppColors.themeColor)),
+      child: RichText(
+        text: TextSpan(
+          style: const TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+            letterSpacing: 0.5,
+          ),
+          text: "Don't have an account? ",
+          children: [
+            TextSpan(
+              text: 'Sign Up',
+              style: const TextStyle(
+                color: AppColors.themeColor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -84,16 +115,21 @@ class _SignInScreenState extends State<SignInScreen> {
       User? user = userCredential.user;
 
       if (user != null) {
-        if (!user.emailVerified) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please verify your email before logging in.")));
-          await user.sendEmailVerification();
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Login successful!")));
-          // TODO: Navigate to home screen
-        }
+        // ✅ Login successful
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Login successful!")),
+        );
+
+        // ✅ Navigate to Home Screen
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
       }
     } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message ?? "Login failed")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? "Login failed")),
+      );
     } finally {
       setState(() => _loading = false);
     }

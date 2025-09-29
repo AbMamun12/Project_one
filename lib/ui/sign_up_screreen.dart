@@ -68,23 +68,48 @@ class _SignUpScreenState extends State<SignUpScreen> {
           child: const Text("Sign Up"),
         ),
         const SizedBox(height: 24),
-        _buildSignUpSection(),
+        _buildSignInSection(),
       ],
     );
   }
 
-  Widget _buildSignUpSection() {
+  Widget _buildSignInSection() {
     return GestureDetector(
       onTap: () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const SignInScreen()));
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const SignInScreen()),
+        );
       },
-      child: const Text("Have an account? Sign In", style: TextStyle(color: AppColors.themeColor)),
+      child: RichText(
+        text: TextSpan(
+          style: const TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+            letterSpacing: 0.5,
+          ),
+          text: "Have an account? ",
+          children: [
+            TextSpan(
+              text: 'Sign In',
+              style: const TextStyle(
+                color: AppColors.themeColor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
+
   Future<void> _onTapSignUpButton() async {
     if (_passwordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Passwords do not match")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Passwords do not match")),
+      );
       return;
     }
 
@@ -108,19 +133,30 @@ class _SignUpScreenState extends State<SignUpScreen> {
           "createdAt": DateTime.now(),
         });
 
-        // Send email verification
-        await user.sendEmailVerification();
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Verification email sent! Please check your inbox.")),
-        );
-
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const SignInScreen()));
+        // ✅ Show success message and wait for it to close
+        ScaffoldMessenger.of(context)
+            .showSnackBar(
+          const SnackBar(
+            content: Text("Account Created Successfully!"),
+            duration: Duration(seconds: 2),
+          ),
+        )
+            .closed
+            .then((_) {
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const SignInScreen()),
+            );
+          }
+        });
       }
     } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message ?? "Sign up failed")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? "Sign up failed")),
+      );
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 }
