@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:mvc/ui/sign_in_screen.dart';
 import 'package:mvc/utils.dart';
+import 'package:mvc/controllers/auth_controller.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -23,6 +24,58 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _confirmPasswordController = TextEditingController();
 
   bool _loading = false;
+
+  Future<void> _onTapSignUpButton() async {
+    if (_passwordController.text != _confirmPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Passwords do not match")),
+      );
+      return;
+    }
+
+    setState(() => _loading = true);
+
+    try {
+      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+      User? user = userCredential.user;
+
+      if (user != null) {
+        // Save user data in Firestore
+        await _firestore.collection("users").doc(user.uid).set({
+          "firstName": _firstNameController.text.trim(),
+          "lastName": _lastNameController.text.trim(),
+          "fullName": "${_firstNameController.text.trim()} ${_lastNameController.text.trim()}",
+          "phone": _phoneController.text.trim(),
+          "email": _emailController.text.trim(),
+          "createdAt": DateTime.now(),
+          "fullName": "${_firstNameController.text.trim()} ${_lastNameController.text.trim()}",
+        });
+
+        // Load user data into AuthController
+        await AuthController.loadUserData();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Account Created Successfully!")),
+        );
+
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const SignInScreen()),
+          );
+        }
+      }
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? "Sign up failed")),
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,8 +135,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
         );
       },
       child: RichText(
-        text: TextSpan(
-          style: const TextStyle(
+        text: const TextSpan(
+          style: TextStyle(
             color: Colors.black,
             fontWeight: FontWeight.w600,
             fontSize: 14,
@@ -93,7 +146,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
           children: [
             TextSpan(
               text: 'Sign In',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.themeColor,
                 fontWeight: FontWeight.bold,
               ),
@@ -102,61 +155,5 @@ class _SignUpScreenState extends State<SignUpScreen> {
         ),
       ),
     );
-  }
-
-
-  Future<void> _onTapSignUpButton() async {
-    if (_passwordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Passwords do not match")),
-      );
-      return;
-    }
-
-    setState(() => _loading = true);
-
-    try {
-      // Create user in Firebase Auth
-      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
-      User? user = userCredential.user;
-
-      if (user != null) {
-        // Save user data in Firestore
-        await _firestore.collection("users").doc(user.uid).set({
-          "firstName": _firstNameController.text.trim(),
-          "lastName": _lastNameController.text.trim(),
-          "phone": _phoneController.text.trim(),
-          "email": _emailController.text.trim(),
-          "createdAt": DateTime.now(),
-        });
-
-        // ✅ Show success message and wait for it to close
-        ScaffoldMessenger.of(context)
-            .showSnackBar(
-          const SnackBar(
-            content: Text("Account Created Successfully!"),
-            duration: Duration(seconds: 2),
-          ),
-        )
-            .closed
-            .then((_) {
-          if (mounted) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const SignInScreen()),
-            );
-          }
-        });
-      }
-    } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? "Sign up failed")),
-      );
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
   }
 }

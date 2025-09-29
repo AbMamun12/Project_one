@@ -1,7 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:mvc/controllers/auth_controller.dart'; // 🔹 AuthController ইম্পোর্ট
 import 'package:mvc/ui/home_screen.dart';
-import 'package:mvc/ui/sign_up_screreen.dart';
+import 'package:mvc/ui/sign_up_screen.dart';
 import 'package:mvc/utils.dart';
 
 class SignInScreen extends StatefulWidget {
@@ -30,7 +31,10 @@ class _SignInScreenState extends State<SignInScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 82),
-              Text('Welcome Back', style: textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w600)),
+              Text(
+                'Welcome Back',
+                style: textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 24),
               _buildSignInForm(),
               const SizedBox(height: 24),
@@ -66,7 +70,10 @@ class _SignInScreenState extends State<SignInScreen> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
           onPressed: _onTapNextButton,
-          child: const Text("Login", style: TextStyle(color: Colors.white, fontSize: 16)),
+          child: const Text(
+            "Login",
+            style: TextStyle(color: Colors.white, fontSize: 16),
+          ),
         ),
       ],
     );
@@ -81,8 +88,8 @@ class _SignInScreenState extends State<SignInScreen> {
         );
       },
       child: RichText(
-        text: TextSpan(
-          style: const TextStyle(
+        text: const TextSpan(
+          style: TextStyle(
             color: Colors.black,
             fontWeight: FontWeight.w600,
             fontSize: 14,
@@ -92,7 +99,7 @@ class _SignInScreenState extends State<SignInScreen> {
           children: [
             TextSpan(
               text: 'Sign Up',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.themeColor,
                 fontWeight: FontWeight.bold,
               ),
@@ -115,23 +122,28 @@ class _SignInScreenState extends State<SignInScreen> {
       User? user = userCredential.user;
 
       if (user != null) {
+        // 🔹 Firestore থেকে ডাটা লোড করো
+        await AuthController.loadUserData();
+
         // ✅ Login successful
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Login successful!")),
         );
 
         // ✅ Navigate to Home Screen
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+          );
+        }
       }
     } on FirebaseAuthException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message ?? "Login failed")),
       );
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 }
