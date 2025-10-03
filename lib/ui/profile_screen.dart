@@ -1,7 +1,12 @@
-/*
-import 'dart:convert';
-
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:mvc/widget/app_bar.dart';
+import 'package:mvc/widget/centered_circular_progress_indicator.dart';
+import 'package:mvc/widget/snack_bar_message.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -16,10 +21,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final TextEditingController _lastNameTEController = TextEditingController();
   final TextEditingController _phoneTEController = TextEditingController();
   final TextEditingController _passwordTEController = TextEditingController();
-  final GlobalKey<FormState> _FormKey = GlobalKey<FormState>();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   XFile? _selectedImage;
   bool _updateProfileInProgress = false;
+
+  final user = FirebaseAuth.instance.currentUser;
 
   @override
   void initState() {
@@ -28,21 +35,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _setUserData() {
-    _emailTEController.text = AuthController.userData?.email ?? '';
-    _firstNameTEController.text = AuthController.userData?.firstName ?? '';
-    _lastNameTEController.text = AuthController.userData?.lastName ?? '';
-    _phoneTEController.text = AuthController.userData?.mobile ?? '';
+    _emailTEController.text = user?.email ?? '';
+    _firstNameTEController.text = user?.displayName?.split(" ").first ?? '';
+    _lastNameTEController.text =
+        user?.displayName?.split(" ").skip(1).join(" ") ?? '';
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const TMAppBar(isProfileScreenopen: true),
+      appBar: const TMAppBar(isProfileScreenOpen: true, showBackButton: true,),
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Form(
-            key: _FormKey,
+            key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -56,65 +63,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 32),
                 _buildPhotoPicker(),
                 const SizedBox(height: 8),
-
                 TextFormField(
                   enabled: false,
                   controller: _emailTEController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(hintText: 'Email'),
-                  validator: (String? value){
-                    if (value?.trim().isEmpty?? true){
-                      return 'Enter your Email';
-                    }
-                    return null;
-                  },
+                  decoration: const InputDecoration(hintText: 'Email'),
                 ),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _firstNameTEController,
-                  decoration: InputDecoration(hintText: 'First Name'),
-                  validator: (String? value){
-                    if (value?.trim().isEmpty?? true){
-                      return 'Enter your First Name';
-                    }
-                    return null;
-                  },
+                  decoration: const InputDecoration(hintText: 'First Name'),
+                  validator: (value) =>
+                      value!.trim().isEmpty ? 'Enter your First Name' : null,
                 ),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _lastNameTEController,
-                  decoration: InputDecoration(hintText: 'Last Name'),
-                  validator: (String? value){
-                    if (value?.trim().isEmpty?? true){
-                      return 'Enter your last Name';
-                    }
-                    return null;
-                  },
+                  decoration: const InputDecoration(hintText: 'Last Name'),
+                  validator: (value) =>
+                      value!.trim().isEmpty ? 'Enter your Last Name' : null,
                 ),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _phoneTEController,
                   keyboardType: TextInputType.phone,
-                  decoration: InputDecoration(hintText: 'Mobile'),
-                  validator: (String? value){
-                    if (value?.trim().isEmpty?? true){
-                      return 'Enter your Phone Number';
-                    }
-                    return null;
-                  },
+                  decoration: const InputDecoration(hintText: 'Mobile'),
                 ),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _passwordTEController,
-                  decoration: InputDecoration(hintText: 'Password'),
+                  decoration: const InputDecoration(hintText: 'Password'),
+                  obscureText: true,
                 ),
                 const SizedBox(height: 16),
                 Visibility(
-                  visible: _updateProfileInProgress==false,
+                  visible: !_updateProfileInProgress,
                   replacement: const CenteredCircularProgressIndicator(),
                   child: ElevatedButton(
                     onPressed: () {
-                      if (_FormKey.currentState!.validate()) {
+                      if (_formKey.currentState!.validate()) {
                         _updateProfile();
                       }
                     },
@@ -133,42 +120,55 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _updateProfile() async {
     _updateProfileInProgress = true;
     setState(() {});
-    Map<String, dynamic> requestBody = {
-      "ëmail": _emailTEController.text.trim(),
-      "firstName": _firstNameTEController.text.trim(),
-      "lastName": _lastNameTEController.text.trim(),
-      "mobile": _phoneTEController.text.trim(),
-    };
-    if (_passwordTEController.text.isNotEmpty) {
-      requestBody['password'] = _passwordTEController.text;
-    }
-    if (_selectedImage != null) {
-      List<int> imageBytes = await _selectedImage!.readAsBytes();
-      String convertedImage = base64Encode(imageBytes);
-      requestBody['photo'] = convertedImage;
-    }
-    final NetworkResponse response = await NetworkCaller.postRequest(
-      url: Urls.updateProfile,
-      body: requestBody,
-    );
-    _updateProfileInProgress =false;
-    setState(() {});
-    if (response.isSuccess){
-      UserModel userModel = UserModel.fromJson(requestBody);
-      AuthController.saveUserData(userModel);
+
+    try {
+      String fullName =
+          "${_firstNameTEController.text.trim()} ${_lastNameTEController.text.trim()}";
+      String? photoUrl = user?.photoURL;
+
+      // যদি নতুন ছবি নির্বাচন করে থাকে
+      if (_selectedImage != null) {
+        File file = File(_selectedImage!.path);
+        final storageRef = FirebaseStorage.instance.ref().child(
+          "profile_photos/${user!.uid}.jpg",
+        );
+
+        await storageRef.putFile(file);
+        photoUrl = await storageRef.getDownloadURL();
+      }
+
+      // FirebaseAuth User update
+      await user?.updateDisplayName(fullName);
+      if (photoUrl != null) {
+        await user?.updatePhotoURL(photoUrl);
+      }
+      if (_passwordTEController.text.isNotEmpty) {
+        await user?.updatePassword(_passwordTEController.text.trim());
+      }
+
+      await user?.reload();
+
+      // Firestore এ ডাটা সংরক্ষণ
+      await FirebaseFirestore.instance.collection("users").doc(user?.uid).set({
+        "uid": user?.uid,
+        "email": user?.email,
+        "fullName": fullName,
+        "phone": _phoneTEController.text.trim(),
+        "photoUrl": photoUrl,
+      }, SetOptions(merge: true));
 
       showSnackBarMessege(context, 'Profile has been updated!');
+    } catch (e) {
+      showSnackBarMessege(context, 'Error: $e');
     }
-    else{
-      showSnackBarMessege(context, response.errorMessage);
 
-    }
+    _updateProfileInProgress = false;
+    setState(() {});
   }
 
   Widget _buildPhotoPicker() {
     return GestureDetector(
       onTap: _pickImage,
-
       child: Container(
         height: 50,
         decoration: BoxDecoration(
@@ -213,13 +213,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _pickImage() async {
-    ImagePicker _imagePicker = ImagePicker();
-    XFile? pickedImage = await _imagePicker.pickImage(
+    final picker = ImagePicker();
+    XFile? pickedImage = await picker.pickImage(
       source: ImageSource.gallery,
+      imageQuality: 75,
     );
     if (pickedImage != null) {
       _selectedImage = pickedImage;
       setState(() {});
     }
   }
-}*/
+}

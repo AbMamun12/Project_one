@@ -47,7 +47,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
         await _firestore.collection("users").doc(user.uid).set({
           "firstName": _firstNameController.text.trim(),
           "lastName": _lastNameController.text.trim(),
-          "fullName": "${_firstNameController.text.trim()} ${_lastNameController.text.trim()}",
           "phone": _phoneController.text.trim(),
           "email": _emailController.text.trim(),
           "createdAt": DateTime.now(),

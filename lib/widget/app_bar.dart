@@ -1,29 +1,34 @@
 import 'package:flutter/material.dart';
-import 'package:mvc/utils.dart';
-import 'package:mvc/controllers/auth_controller.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mvc/ui/sign_in_screen.dart';
+import 'package:mvc/ui/profile_screen.dart';
+import 'package:mvc/utils.dart';
 
 class TMAppBar extends StatelessWidget implements PreferredSizeWidget {
   const TMAppBar({
     super.key,
     this.isProfileScreenOpen = false,
+    this.showBackButton = false,   // <-- নতুন parameter
   });
 
   final bool isProfileScreenOpen;
+  final bool showBackButton;
 
   @override
   Widget build(BuildContext context) {
-    final user = AuthController.userData;
+    final user = FirebaseAuth.instance.currentUser;
 
     return AppBar(
       backgroundColor: AppColors.themeColor,
-      automaticallyImplyLeading: false,
+      automaticallyImplyLeading: showBackButton, // <-- এখানে কন্ট্রোল হবে
       titleSpacing: 0,
       title: InkWell(
         onTap: () {
           if (!isProfileScreenOpen) {
-            // 👉 চাইলে এখানে ProfileScreen এ নিয়ে যেতে পারো
-            // Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const ProfileScreen()),
+            );
           }
         },
         child: Row(
@@ -32,10 +37,18 @@ class TMAppBar extends StatelessWidget implements PreferredSizeWidget {
             CircleAvatar(
               radius: 16,
               backgroundColor: Colors.white,
-              child: Text(
-                user?.fullName.isNotEmpty == true ? user!.fullName[0].toUpperCase() : "?",
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
+              backgroundImage: user?.photoURL != null
+                  ? NetworkImage(user!.photoURL!)
+                  : null,
+              child: user?.photoURL == null
+                  ? Text(
+                user?.displayName?.isNotEmpty == true
+                    ? user!.displayName![0].toUpperCase()
+                    : "?",
+                style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.bold),
+              )
+                  : null,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -44,7 +57,7 @@ class TMAppBar extends StatelessWidget implements PreferredSizeWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    user?.fullName ?? '',
+                    user?.displayName ?? 'No Name',
                     style: const TextStyle(
                       fontSize: 16,
                       color: Colors.white,
@@ -53,8 +66,11 @@ class TMAppBar extends StatelessWidget implements PreferredSizeWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
-                    user?.email ?? '',
-                    style: const TextStyle(fontSize: 12, color: Colors.white70),
+                    user?.email ?? 'No Email',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.white70,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
@@ -66,7 +82,7 @@ class TMAppBar extends StatelessWidget implements PreferredSizeWidget {
       actions: [
         IconButton(
           onPressed: () async {
-            await AuthController.clearUserData();
+            await FirebaseAuth.instance.signOut();
             if (context.mounted) {
               Navigator.pushAndRemoveUntil(
                 context,
